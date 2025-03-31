@@ -10,6 +10,14 @@ import Messages
 
 class MessagesViewController: MSMessagesAppViewController {
     
+    private let languagePicker: UIPickerView = {
+        let picker = UIPickerView()
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        return picker
+    }()
+    
+    private let languages = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Russian", "Japanese", "Korean", "Chinese"]
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -27,13 +35,33 @@ class MessagesViewController: MSMessagesAppViewController {
         translateButton.translatesAutoresizingMaskIntoConstraints = false
         translateButton.addTarget(self, action: #selector(translateButtonTapped), for: .touchUpInside)
         
-        view.addSubview(translateButton)
+        // Setup language picker
+        languagePicker.delegate = self
+        languagePicker.dataSource = self
+        
+        // Create a stack view to hold our UI elements
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 20
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Add a label for the picker
+        let label = UILabel()
+        label.text = "Select Target Language:"
+        label.textAlignment = .center
+        
+        stackView.addArrangedSubview(label)
+        stackView.addArrangedSubview(languagePicker)
+        stackView.addArrangedSubview(translateButton)
+        
+        view.addSubview(stackView)
         
         NSLayoutConstraint.activate([
-            translateButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            translateButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            translateButton.widthAnchor.constraint(equalToConstant: 120),
-            translateButton.heightAnchor.constraint(equalToConstant: 44)
+            stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            stackView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
+            translateButton.heightAnchor.constraint(equalToConstant: 44),
+            languagePicker.heightAnchor.constraint(equalToConstant: 150)
         ])
     }
     
@@ -44,13 +72,14 @@ class MessagesViewController: MSMessagesAppViewController {
         if let selectedMessage = conversation.selectedMessage,
            let layout = selectedMessage.layout as? MSMessageTemplateLayout {
             let text = layout.caption ?? ""
+            let selectedLanguage = languages[languagePicker.selectedRow(inComponent: 0)]
             
-            // Translate to English (or any other default language)
+            // Translate to selected language
             Task {
                 do {
                     let translatedText = try await TranslationService.shared.translate(
                         text: text,
-                        to: "English"
+                        to: selectedLanguage
                     )
                     
                     // Create a new message with the translated text
@@ -80,5 +109,20 @@ class MessagesViewController: MSMessagesAppViewController {
     override func didBecomeActive(with conversation: MSConversation) {
         super.didBecomeActive(with: conversation)
         print("Extension did become active")
+    }
+}
+
+// MARK: - UIPickerViewDelegate & UIPickerViewDataSource
+extension MessagesViewController: UIPickerViewDelegate, UIPickerViewDataSource {
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 1
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return languages.count
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return languages[row]
     }
 }
