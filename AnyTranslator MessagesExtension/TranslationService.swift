@@ -4,18 +4,19 @@ class TranslationService {
     static let shared = TranslationService()
     private let baseURL = "https://api.mymemory.translated.net/get"
     
-    func translate(text: String, to: String) async throws -> String {
-        guard let targetCode = TranslationMessage.supportedLanguages[to] else {
-            print("Translation failed: Invalid target language")
+    func translate(text: String, from: String, to: String) async throws -> String {
+        guard let sourceCode = TranslationMessage.supportedLanguages[from],
+              let targetCode = TranslationMessage.supportedLanguages[to] else {
+            print("Translation failed: Invalid language selection")
             throw NSError(domain: "TranslationService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsupported language"])
         }
         
-        print("Creating translation request")
+        print("Creating translation request from \(sourceCode) to \(targetCode)")
         
         var components = URLComponents(string: baseURL)!
         components.queryItems = [
             URLQueryItem(name: "q", value: text),
-            URLQueryItem(name: "langpair", value: "auto|\(targetCode)")
+            URLQueryItem(name: "langpair", value: "\(sourceCode)|\(targetCode)")
         ]
         
         guard let url = components.url else {
