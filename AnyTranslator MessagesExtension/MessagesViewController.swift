@@ -58,14 +58,7 @@ class MessagesViewController: MSMessagesAppViewController {
     }()
     
     private let languageCollectionView: UICollectionView = {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .horizontal
-        layout.itemSize = CGSize(width: 100, height: 44)
-        layout.minimumInteritemSpacing = 10
-        layout.minimumLineSpacing = 10
-        layout.sectionInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-        
-        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
         collectionView.backgroundColor = .clear
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         return collectionView
@@ -100,7 +93,24 @@ class MessagesViewController: MSMessagesAppViewController {
         sourceLanguageButton.addTarget(self, action: #selector(sourceLanguageButtonTapped), for: .touchUpInside)
         targetLanguageButton.addTarget(self, action: #selector(targetLanguageButtonTapped), for: .touchUpInside)
         
-        // Setup collection view
+        // Setup collection view with adaptive layout
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.minimumInteritemSpacing = 10
+        layout.minimumLineSpacing = 10
+        layout.sectionInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        
+        // Calculate item size based on device type
+        let screenWidth = UIScreen.main.bounds.width
+        let itemWidth: CGFloat
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            itemWidth = min(120, screenWidth * 0.25) // iPad: 25% of screen width or 120
+        } else {
+            itemWidth = 100 // iPhone: fixed width
+        }
+        layout.itemSize = CGSize(width: itemWidth, height: 44)
+        
+        languageCollectionView.collectionViewLayout = layout
         languageCollectionView.delegate = self
         languageCollectionView.dataSource = self
         languageCollectionView.register(LanguageCell.self, forCellWithReuseIdentifier: "LanguageCell")
@@ -124,20 +134,44 @@ class MessagesViewController: MSMessagesAppViewController {
         
         view.addSubview(stackView)
         
-        // Update constraints
-        NSLayoutConstraint.activate([
-            stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            stackView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
-            translateButton.heightAnchor.constraint(equalToConstant: 44),
-            sourceLanguageButton.heightAnchor.constraint(equalToConstant: 44),
-            targetLanguageButton.heightAnchor.constraint(equalToConstant: 44),
-            languageSelectionView.heightAnchor.constraint(equalToConstant: 64),
-            languageCollectionView.topAnchor.constraint(equalTo: languageSelectionView.topAnchor),
-            languageCollectionView.leadingAnchor.constraint(equalTo: languageSelectionView.leadingAnchor),
-            languageCollectionView.trailingAnchor.constraint(equalTo: languageSelectionView.trailingAnchor),
-            languageCollectionView.bottomAnchor.constraint(equalTo: languageSelectionView.bottomAnchor)
-        ])
+        // Update constraints based on device type
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            // iPad layout
+            let stackWidth = min(600, view.bounds.width * 0.8)
+            let stackHeight = min(500, view.bounds.height * 0.8)
+            
+            NSLayoutConstraint.activate([
+                stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                stackView.widthAnchor.constraint(equalToConstant: stackWidth),
+                stackView.heightAnchor.constraint(lessThanOrEqualToConstant: stackHeight),
+                translateButton.heightAnchor.constraint(equalToConstant: 44),
+                sourceLanguageButton.heightAnchor.constraint(equalToConstant: 44),
+                targetLanguageButton.heightAnchor.constraint(equalToConstant: 44),
+                languageSelectionView.heightAnchor.constraint(equalToConstant: 64),
+                textField.heightAnchor.constraint(equalToConstant: 44),
+                languageCollectionView.topAnchor.constraint(equalTo: languageSelectionView.topAnchor),
+                languageCollectionView.leadingAnchor.constraint(equalTo: languageSelectionView.leadingAnchor),
+                languageCollectionView.trailingAnchor.constraint(equalTo: languageSelectionView.trailingAnchor),
+                languageCollectionView.bottomAnchor.constraint(equalTo: languageSelectionView.bottomAnchor)
+            ])
+        } else {
+            // iPhone layout
+            NSLayoutConstraint.activate([
+                stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                stackView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
+                translateButton.heightAnchor.constraint(equalToConstant: 44),
+                sourceLanguageButton.heightAnchor.constraint(equalToConstant: 44),
+                targetLanguageButton.heightAnchor.constraint(equalToConstant: 44),
+                languageSelectionView.heightAnchor.constraint(equalToConstant: 64),
+                textField.heightAnchor.constraint(equalToConstant: 44),
+                languageCollectionView.topAnchor.constraint(equalTo: languageSelectionView.topAnchor),
+                languageCollectionView.leadingAnchor.constraint(equalTo: languageSelectionView.leadingAnchor),
+                languageCollectionView.trailingAnchor.constraint(equalTo: languageSelectionView.trailingAnchor),
+                languageCollectionView.bottomAnchor.constraint(equalTo: languageSelectionView.bottomAnchor)
+            ])
+        }
         
         // Update toolbar size when view size changes
         view.addObserver(self, forKeyPath: "bounds", options: [.new, .initial], context: nil)
@@ -244,6 +278,22 @@ class MessagesViewController: MSMessagesAppViewController {
     override func didBecomeActive(with conversation: MSConversation) {
         super.didBecomeActive(with: conversation)
         print("Extension did become active")
+    }
+    
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        
+        // Update collection view layout when orientation changes
+        if let layout = languageCollectionView.collectionViewLayout as? UICollectionViewFlowLayout {
+            let itemWidth: CGFloat
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                itemWidth = min(120, size.width * 0.25) // iPad: 25% of screen width or 120
+            } else {
+                itemWidth = 100 // iPhone: fixed width
+            }
+            layout.itemSize = CGSize(width: itemWidth, height: 44)
+            layout.invalidateLayout()
+        }
     }
 }
 
